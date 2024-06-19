@@ -1,0 +1,49 @@
+import {KinopoiskDev, MovieQueryBuilder, SPECIAL_VALUE, Filter, MovieFields,
+} from '@openmoviedb/kinopoiskdev_client';
+const kp = new KinopoiskDev('ВАШ ТОКЕН');
+const getRelatedByQueryBuilderMovies = async () => {
+    const queryBuilder = new MovieQueryBuilder();
+    const query = queryBuilder
+        .select(['id', 'name', 'rating', 'poster', 'year'])
+        .filterRange('year', [2020, 2023])
+        .filterRange('rating.kp', [7.5, 10])
+        .filterExact('poster.url', SPECIAL_VALUE.NOT_NULL)
+        .filterExact('countries.name', 'США')
+        .filterExact('countries.name', 'Россия')
+        .paginate(1, 10)
+        .build();
+    const { data, error, message } = await kp.movie.getByFilters(query);
+    if (data) {const { docs, page, limit } = data;console.log(`Страница ${page} из ${limit}`);console.log(docs);}
+    if (error) console.log(error, message);};
+const getRelatedWithoutQueryBuilderMovies = async () => {
+    const query: Filter<MovieFields> = {
+        selectFields: ['id', 'name', 'rating', 'poster', 'year'], year: '2020-2023', 'rating.kp': '7.5-10', 'poster.url': '!null', sortField: 'rating.kp', sortType: '-1', page: 1, limit: 10,};
+    const { data, error, message } = await kp.movie.getByFilters(query);
+if (data) {const { docs, page, limit } = data;console.log(`Страница ${page} из ${limit}`);console.log(docs);}if (error) console.log(error, message);};
+const getMovieById = async () => {const { data, error, message } = await kp.movie.getById(666);
+    if (data) {console.log(data);}if (error) console.log(error, message);};
+const getRandomMovie = async () => {
+    const { data, error, message } = await kp.movie.getRandom();
+    if (data) {console.log(data);}if (error) console.log(error, message);};
+const getRandomMovieWithFilters = async () => {
+    const queryBuilder = new MovieQueryBuilder();const baseQuery = queryBuilder.select(['id', 'name', 'rating', 'poster', 'year'])
+        .filterExact('poster.url', SPECIAL_VALUE.NOT_NULL).filterExact('videos.trailers.url', SPECIAL_VALUE.NOT_NULL);
+    const firstQuery = baseQuery.paginate(1, 1).build();
+    const firstRes = await kp.movie.getByFilters(firstQuery);
+    if (firstRes.data) {const { pages } = firstRes.data;const randomPage = Math.floor(Math.random() * pages) + 1;
+        const query = baseQuery.paginate(randomPage, 1).build();
+        const { data, error, message } = await kp.movie.getByFilters(query);
+        if (data) {console.log(data.docs[0]);}if (error) console.log(error, message);}
+    if (firstRes.error) console.log(firstRes.error, firstRes.message);};
+const searchMovies = async () => {
+    const queryBuilder = new MovieQueryBuilder();
+    const query = queryBuilder.query('Аватар 2022').paginate(1, 10).build();
+    const { data, error, message } = await kp.movie.getBySearchQuery(query);
+    if (data) {const { docs, page, limit } = data;console.log(`Страница ${page} из ${limit}`);console.log(docs);}if (error) console.log(error, message);};
+const getGenres = async () => {
+    const { data, error, message } = await kp.movie.getPossibleValuesByField('genres.name',);
+    if (data) console.log(data);if (error) console.log(error, message);};
+const getCountries = async () => {
+    const { data, error, message } = await kp.movie.getPossibleValuesByField('countries.name',);if (data) console.log(data);if (error) console.log(error, message);};
+const bootstrap = async () => {await getMovieById();await getRelatedByQueryBuilderMovies();await getRelatedWithoutQueryBuilderMovies();await getRandomMovie();await getRandomMovieWithFilters();await searchMovies();await getGenres();await getCountries();};
+bootstrap();
