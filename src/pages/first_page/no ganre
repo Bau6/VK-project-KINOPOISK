@@ -1,0 +1,161 @@
+import React, { Component } from 'react';
+import { KinopoiskDev, MovieQueryBuilder, SPECIAL_VALUE, Filter, MovieFields } from '@openmoviedb/kinopoiskdev_client';
+import styles from "./style.module.css";
+
+interface First_pageState {
+    movies: import("@openmoviedb/kinopoiskdev_client/dist/types").MovieDtoV13[];
+    page: number;
+    limit: number;
+    filterYearFrom: number | null;
+    filterYearTo: number | null;
+    filterRatingFrom: number | null;
+    filterRatingTo: number | null;
+}
+
+const kp = new KinopoiskDev('CE2XJQ3-GBTM15V-GFQ02EB-S3W58Z6');
+
+class First_page extends Component<{}, First_pageState> {
+    constructor(props: any) {
+        super(props);
+        this.state = {
+            movies: [],
+            page: 1,
+            limit: 50,
+            filterYearFrom: null,
+            filterYearTo: null,
+            filterRatingFrom: null,
+            filterRatingTo: null,
+        };
+    }
+
+    async componentDidMount() {
+        await this.getMovies();
+    }
+
+    getMovies = async () => {
+        const queryBuilder = new MovieQueryBuilder();
+        queryBuilder
+            .select(['id', 'name', 'rating', 'poster', 'year'])
+            .filterExact('poster.url', SPECIAL_VALUE.NOT_NULL)
+            .filterExact('countries.name', 'США')
+            .filterExact('countries.name', 'Россия')
+            .paginate(this.state.page, this.state.limit);
+
+        if (this.state.filterYearFrom
+            !== null && this.state.filterYearTo !== null) {
+            queryBuilder.filterRange('year', [this.state.filterYearFrom, this.state.filterYearTo]);
+        }
+
+        if (this.state.filterRatingFrom !== null && this.state.filterRatingTo !== null) {
+            queryBuilder.filterRange('rating.kp', [this.state.filterRatingFrom, this.state.filterRatingTo]);
+        }
+
+        const query = queryBuilder.build();
+        const { data, error, message } = await kp.movie.getByFilters(query);
+
+        if (data) {
+            const { docs } = data;
+            this.setState({ movies: docs });
+            console.log(docs);
+        }
+
+        if (error) console.log(error, message);
+    };
+
+    handleYearChange = (e: React.ChangeEvent<HTMLInputElement>, filterType: 'from' | 'to') => {
+        const value = parseInt(e.target.value, 10);
+        if (isNaN(value)) return;
+        this.setState((prevState) => ({
+            ...prevState,
+            [filterType === 'from' ? 'filterYearFrom' : 'filterYearTo']: value,
+        }), () => {
+            this.getMovies();
+        });
+    };
+
+    handleRatingChange = (e: React.ChangeEvent<HTMLInputElement>, filterType: 'from' | 'to') => {
+        const value = parseFloat(e.target.value);
+        if (isNaN(value)) return;
+        this.setState((prevState) => ({
+            ...prevState,
+            [filterType === 'from' ? 'filterRatingFrom' : 'filterRatingTo']: value,
+        }), () => {
+            this.getMovies();
+        });
+    };
+
+    render() {
+        return (
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1>Кинопоиск</h1>
+                </div>
+                <div className={styles.filterContainer}>
+                    <div>
+                        <label htmlFor="filterYearFrom">Год (от):</label>
+                        <input
+                            type="number"
+                            id="filterYearFrom"
+                            value={this.state.filterYearFrom || ''}
+                            onChange={(e) => this.handleYearChange(e, 'from')}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="filterYearTo">Год (до):</label>
+                        <input
+                            type="number"
+                            id="filterYearTo"
+                            value={this.state.filterYearTo || ''}
+                            onChange={(e) => this.handleYearChange(e, 'to')}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="filterRatingFrom">Рейтинг (от):</label>
+                        <input
+                            type="number"
+                            id="filterRatingFrom"
+                            value={this.state.filterRatingFrom || ''}
+                            onChange={(e) => this.handleRatingChange(e, 'from')}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="filterRatingTo">Рейтинг (до):</label>
+                        <input
+                            type="number"
+                            id="filterRatingTo"
+                            value={this.state.filterRatingTo || ''}
+                            onChange={(e) => this.handleRatingChange(e, 'to')}
+                        />
+                    </div>
+                </div>
+                <div className={styles.moviesContainer}>
+                    <div className={styles.movieRow}>
+                        {this.state.movies.map((movie, index) => (
+                            <div
+                                key={movie.id}
+                                className={styles.movieItem}
+                            >
+                                <div className={styles.movieCard}>
+                                    <img
+                                        className={styles.imgMovies}
+                                        src={movie.poster ? movie.poster.url : ""}
+                                        alt={movie.name ? movie.name : 'Название фильма'}  // Проверьте на undefined
+                                    />
+                                    <div className={styles.movieInfo}>
+                                        <p>{movie.name}</p>
+                                        <p>{movie.year}</p>
+                                        <p>Рейтинг Кинопоиска: {movie.rating ? movie.rating.kp : ""}</p>
+                                        <p>Рейтинг IMDb: {movie.rating ? movie.rating.imdb : ""}</p>
+                                        <p>Рейтинг Кинокритиков: {movie.rating ? movie.rating.filmCritics : ""}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+}
+
+export default First_page;
